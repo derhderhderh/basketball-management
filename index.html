@@ -1,0 +1,344 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Basketball Team Management System</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 0;
+            padding: 0;
+            background-color: #f4f4f4;
+        }
+
+        .header {
+            background-color: #333;
+            color: white;
+            text-align: center;
+            padding: 1rem;
+        }
+
+        .container {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 80vh;
+            flex-direction: column;
+        }
+
+        #loginForm, #mainContent {
+            width: 300px;
+            background-color: white;
+            padding: 20px;
+            border-radius: 10px;
+            box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
+        }
+
+        input[type="text"], input[type="password"], input[type="email"], input[type="number"] {
+            width: 100%;
+            padding: 10px;
+            margin: 10px 0;
+            border-radius: 5px;
+            border: 1px solid #ccc;
+        }
+
+        button {
+            width: 100%;
+            padding: 10px;
+            background-color: #333;
+            color: white;
+            border: none;
+            cursor: pointer;
+            border-radius: 5px;
+        }
+
+        button:hover {
+            background-color: #555;
+        }
+
+        .tabs {
+            display: flex;
+            justify-content: space-around;
+            background-color: #333;
+            padding: 10px;
+            margin: 20px 0;
+        }
+
+        .tabs div {
+            color: white;
+            cursor: pointer;
+            padding: 10px;
+            text-align: center;
+            width: 33%;
+        }
+
+        .tabs div:hover {
+            background-color: #555;
+        }
+
+        .modal {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0, 0, 0, 0.5);
+            justify-content: center;
+            align-items: center;
+        }
+
+        .modal-content {
+            background-color: white;
+            padding: 20px;
+            border-radius: 10px;
+            width: 300px;
+        }
+
+        .modal-content input {
+            width: 100%;
+        }
+
+        .modal-content button {
+            width: 100%;
+            background-color: #333;
+            color: white;
+        }
+
+        .user-list, .roster, .stats {
+            list-style: none;
+            padding: 0;
+        }
+
+        .user-list li, .roster li, .stats li {
+            margin: 10px 0;
+        }
+    </style>
+</head>
+<body>
+
+<div class="header">
+    <h1>Basketball Team Management System</h1>
+</div>
+
+<div class="container">
+    <!-- Login Form -->
+    <div id="loginForm">
+        <h2>Login</h2>
+        <input type="email" id="email" placeholder="Email" autocomplete="email" required><br>
+        <input type="password" id="password" placeholder="Password" autocomplete="current-password" required><br>
+        <button id="loginButton">Login</button>
+    </div>
+
+    <!-- Main Content (after login) -->
+    <div id="mainContent" style="display: none;">
+        <div class="tabs">
+            <div onclick="showRoster()">Roster</div>
+            <div onclick="showStats()">Stats</div>
+            <div onclick="showUsers()">Users</div>
+        </div>
+
+        <div id="rosterPage">
+            <h2>Roster</h2>
+            <button onclick="showAddPlayerModal()">Add Player</button>
+            <ul id="rosterList"></ul>
+        </div>
+
+        <div id="statsPage" style="display: none;">
+            <h2>Stats</h2>
+            <button onclick="showAddStatModal()">Add Stat</button>
+            <ul id="statsList"></ul>
+        </div>
+
+        <div id="usersPage" style="display: none;">
+            <h2>Users</h2>
+            <button onclick="showAddUserModal()">Add User</button>
+            <ul id="usersList"></ul>
+        </div>
+    </div>
+</div>
+
+<!-- Add Player Modal -->
+<div id="modal" class="modal">
+    <div class="modal-content">
+        <h3>Add Player</h3>
+        <input type="text" id="playerName" placeholder="Player Name" required><br>
+        <input type="number" id="playerNumber" placeholder="Player Number" required><br>
+        <button onclick="addPlayer()">Add</button>
+        <button onclick="closeModal()">Close</button>
+    </div>
+</div>
+
+<!-- Add User Modal -->
+<div id="modalUser" class="modal">
+    <div class="modal-content">
+        <h3>Add User</h3>
+        <input type="text" id="userName" placeholder="User Name" required><br>
+        <input type="email" id="userEmail" placeholder="Email" required><br>
+        <input type="password" id="userPassword" placeholder="Password" required><br>
+        <button onclick="addUser()">Add User</button>
+        <button onclick="closeModalUser()">Close</button>
+    </div>
+</div>
+
+<!-- Firebase SDK (Modular Version) -->
+<script type="module">
+    import { initializeApp } from "https://www.gstatic.com/firebasejs/9.6.1/firebase-app.js";
+    import { getFirestore, collection, getDocs, addDoc, query, where } from "https://www.gstatic.com/firebasejs/9.6.1/firebase-firestore.js";
+
+    // Your Firebase config
+    const firebaseConfig = {
+        apiKey: import.meta.env.VITE_FIREBASE_API_KEY,
+        authDomain: import.meta.env.VITE_FIREBASE_AUTH_DOMAIN,
+        projectId: import.meta.env.VITE_FIREBASE_PROJECT_ID,
+        storageBucket: import.meta.env.VITE_FIREBASE_STORAGE_BUCKET,
+        messagingSenderId: import.meta.env.VITE_FIREBASE_MESSAGING_SENDER_ID,
+        appId: import.meta.env.VITE_FIREBASE_APP_ID,
+        measurementId: import.meta.env.VITE_FIREBASE_MEASUREMENT_ID
+    };
+
+// Initialize Firebase
+firebase.initializeApp(firebaseConfig);
+
+
+    // Initialize Firebase
+    const app = initializeApp(firebaseConfig);
+    const db = getFirestore(app);
+
+    let currentUser = null;
+
+    async function login() {
+        const email = document.getElementById('email').value;
+        const password = document.getElementById('password').value;
+        const usersCollection = collection(db, "users");
+        const q = query(usersCollection, where("email", "==", email), where("password", "==", password));
+        const querySnapshot = await getDocs(q);
+        if (querySnapshot.empty) {
+            alert("Invalid credentials");
+        } else {
+            currentUser = querySnapshot.docs[0].data();
+            showMainContent();
+            loadRoster();
+            loadStats();
+            loadUsers();
+        }
+    }
+
+    function showMainContent() {
+        document.getElementById('loginForm').style.display = 'none';
+        document.getElementById('mainContent').style.display = 'block';
+    }
+
+    function showRoster() {
+        document.getElementById('rosterPage').style.display = 'block';
+        document.getElementById('statsPage').style.display = 'none';
+        document.getElementById('usersPage').style.display = 'none';
+    }
+
+    function showStats() {
+        document.getElementById('rosterPage').style.display = 'none';
+        document.getElementById('statsPage').style.display = 'block';
+        document.getElementById('usersPage').style.display = 'none';
+    }
+
+    function showUsers() {
+        document.getElementById('rosterPage').style.display = 'none';
+        document.getElementById('statsPage').style.display = 'none';
+        document.getElementById('usersPage').style.display = 'block';
+    }
+
+    async function loadRoster() {
+        const rosterCollection = collection(db, "roster");
+        const querySnapshot = await getDocs(rosterCollection);
+        const rosterList = document.getElementById('rosterList');
+        rosterList.innerHTML = "";
+        querySnapshot.forEach((doc) => {
+            const player = doc.data();
+            const li = document.createElement('li');
+            li.textContent = `${player.name} (No. ${player.number})`;
+            rosterList.appendChild(li);
+        });
+    }
+
+    async function loadStats() {
+        const statsCollection = collection(db, "stats");
+        const querySnapshot = await getDocs(statsCollection);
+        const statsList = document.getElementById('statsList');
+        statsList.innerHTML = "";
+        querySnapshot.forEach((doc) => {
+            const stat = doc.data();
+            const li = document.createElement('li');
+            li.textContent = `${stat.playerName}: ${stat.points} points`;
+            statsList.appendChild(li);
+        });
+    }
+
+    async function loadUsers() {
+        const usersCollection = collection(db, "users");
+        const querySnapshot = await getDocs(usersCollection);
+        const usersList = document.getElementById('usersList');
+        usersList.innerHTML = "";
+        querySnapshot.forEach((doc) => {
+            const user = doc.data();
+            const li = document.createElement('li');
+            li.textContent = user.name;
+            usersList.appendChild(li);
+        });
+    }
+
+    function showAddPlayerModal() {
+        document.getElementById('modal').style.display = 'flex';
+    }
+
+    function closeModal() {
+        document.getElementById('modal').style.display = 'none';
+    }
+
+    async function addPlayer() {
+        const name = document.getElementById('playerName').value;
+        const number = document.getElementById('playerNumber').value;
+        if (!name || !number) {
+            alert("Please fill in all fields.");
+            return;
+        }
+        await addDoc(collection(db, "roster"), {
+            name: name,
+            number: number
+        });
+        closeModal();
+        loadRoster();
+    }
+
+    function showAddUserModal() {
+        document.getElementById('modalUser').style.display = 'flex';
+    }
+
+    function closeModalUser() {
+        document.getElementById('modalUser').style.display = 'none';
+    }
+
+    async function addUser() {
+        const name = document.getElementById('userName').value;
+        const email = document.getElementById('userEmail').value;
+        const password = document.getElementById('userPassword').value;
+        if (!name || !email || !password) {
+            alert("Please fill in all fields.");
+            return;
+        }
+        await addDoc(collection(db, "users"), {
+            name: name,
+            email: email,
+            password: password
+        });
+        closeModalUser();
+        loadUsers();
+    }
+
+    // Attach the login function to the button
+    document.getElementById('loginButton').onclick = login;
+
+</script>
+
+</body>
+</html>
